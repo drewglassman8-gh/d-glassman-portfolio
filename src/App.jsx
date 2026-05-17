@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-
-const PROJ_KEY = "sports-portfolio-v2";
-const ABOUT_KEY = "sports-portfolio-about-v1";
+import { supabase } from "./supabase";
 
 const GRADIENTS = [
   "linear-gradient(135deg, #0a1628 0%, #1a3a5c 100%)",
@@ -27,14 +25,24 @@ const DEFAULT_CATEGORIES = Object.keys(CATEGORY_META);
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 6); }
 
-function load(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
+async function loadProjects() {
+  const { data } = await supabase.from("projects").select("*");
+  return (data || []).map(p => ({ ...p, tags: JSON.parse(p.tags || "[]"), imageUrl: p.image_url }));
 }
-function save(key, val) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { console.error(e); }
+async function saveProject(proj) {
+  const row = { id: proj.id, title: proj.title, description: proj.description, category: proj.category, tags: JSON.stringify(proj.tags || []), link: proj.link, image_url: proj.imageUrl || "", date: proj.date };
+  await supabase.from("projects").upsert(row);
+}
+async function deleteProject(id) {
+  await supabase.from("projects").delete().eq("id", id);
+}
+async function loadAbout() {
+  const { data } = await supabase.from("about").select("*").eq("id", 1).single();
+  return data ? { ...data, skills: JSON.parse(data.skills || "[]"), avatarUrl: data.avatar_url } : null;
+}
+async function saveAbout(about) {
+  const row = { id: 1, name: about.name, headline: about.headline, bio: about.bio, email: about.email, location: about.location, github: about.github, linkedin: about.linkedin, twitter: about.twitter, website: about.website, skills: JSON.stringify(about.skills || []), avatar_url: about.avatarUrl || "" };
+  await supabase.from("about").upsert(row);
 }
 
 const DEFAULT_ABOUT = {
@@ -407,22 +415,30 @@ export default function Portfolio() {
   const [editingAbout, setEditingAbout] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  useEffect(() => {
-    setProjects(load(PROJ_KEY, []));
-    setAbout({ ...DEFAULT_ABOUT, ...load(ABOUT_KEY, DEFAULT_ABOUT) });
+useEffect(() => {
+  async function init() {
+    const [projs, abt] = await Promise.all([loadProjects(), loadAbout()]);
+    setProjects(projs || []);
+    setAbout({ ...DEFAULT_ABOUT, ...(abt || {}) });
     setLoading(false);
-  }, []);
+  }
+  init();
+}, []);
 
-  const persistProjects = (next) => { setProjects(next); save(PROJ_KEY, next); };
-  const persistAbout = (next) => { setAbout(next); save(ABOUT_KEY, next); };
+const persistAbout = async (next) => { setAbout(next); await saveAbout(next); };
+  
+const handleSave = async (proj) => {
+  await saveProject(proj);
+  const exists = projects.find(p => p.id === proj.id);
+  setProjects(exists ? projects.map(p => p.id === proj.id ? proj : p) : [proj, ...projects]);
+  setModalOpen(false); setEditing(null);
+};
 
-  const handleSave = (proj) => {
-    const exists = projects.find(p => p.id === proj.id);
-    persistProjects(exists ? projects.map(p => p.id === proj.id ? proj : p) : [proj, ...projects]);
-    setModalOpen(false); setEditing(null);
-  };
-
-  const handleDelete = (id) => { persistProjects(projects.filter(p => p.id !== id)); setConfirmDelete(null); };
+const handleDelete = async (id) => {
+  await deleteProject(id);
+  setProjects(projects.filter(p => p.id !== id));
+  setConfirmDelete(null);
+};
 
   const navigateTo = (pg, cat) => { setPage(pg); if (cat) setActiveTab(cat); };
 
