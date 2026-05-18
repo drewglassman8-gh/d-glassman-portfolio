@@ -40,13 +40,14 @@ async function deleteProject(id) {
 }
 async function loadAbout() {
   try {
-    const { data } = await supabase.from("about").select("*").eq("id", 1).maybeSingle();
+    const { data } = await supabase.from("about").select("*").eq("id", "1").maybeSingle();
     return data ? { ...data, skills: JSON.parse(data.skills || "[]"), avatarUrl: data.avatar_url } : null;
   } catch { return null; }
 }
 async function saveAbout(about) {
-  const row = { id: 1, name: about.name, headline: about.headline, bio: about.bio, email: about.email, location: about.location, github: about.github, linkedin: about.linkedin, twitter: about.twitter, website: about.website, skills: JSON.stringify(about.skills || []), avatar_url: about.avatarUrl || "" };
-  await supabase.from("about").upsert(row);
+  const row = { id: "1", name: about.name, headline: about.headline, bio: about.bio, email: about.email, location: about.location, github: about.github, linkedin: about.linkedin, twitter: about.twitter, website: about.website, skills: JSON.stringify(about.skills || []), avatar_url: about.avatarUrl || "" };
+  const result = await supabase.from("about").upsert(row);
+  return result;
 }
 
 const DEFAULT_ABOUT = {
