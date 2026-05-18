@@ -31,7 +31,9 @@ async function loadProjects() {
 }
 async function saveProject(proj) {
   const row = { id: proj.id, title: proj.title, description: proj.description, category: proj.category, tags: JSON.stringify(proj.tags || []), link: proj.link, image_url: proj.imageUrl || "", date: proj.date };
-  await supabase.from("projects").upsert(row);
+  const result = await supabase.from("projects").upsert(row);
+  console.log("Supabase result:", result);
+  return result;
 }
 async function deleteProject(id) {
   await supabase.from("projects").delete().eq("id", id);
@@ -430,7 +432,9 @@ useEffect(() => {
 const persistAbout = async (next) => { setAbout(next); await saveAbout(next); };
   
 const handleSave = async (proj) => {
-  await saveProject(proj);
+  const result = await saveProject(proj);
+  console.log("Save result:", result);
+  if (result.error) console.error("Save error:", result.error);
   const exists = projects.find(p => p.id === proj.id);
   setProjects(exists ? projects.map(p => p.id === proj.id ? proj : p) : [proj, ...projects]);
   setModalOpen(false); setEditing(null);
