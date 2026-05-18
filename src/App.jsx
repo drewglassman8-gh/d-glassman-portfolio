@@ -37,8 +37,10 @@ async function deleteProject(id) {
   await supabase.from("projects").delete().eq("id", id);
 }
 async function loadAbout() {
-  const { data } = await supabase.from("about").select("*").eq("id", 1).single();
-  return data ? { ...data, skills: JSON.parse(data.skills || "[]"), avatarUrl: data.avatar_url } : null;
+  try {
+    const { data } = await supabase.from("about").select("*").eq("id", 1).maybeSingle();
+    return data ? { ...data, skills: JSON.parse(data.skills || "[]"), avatarUrl: data.avatar_url } : null;
+  } catch { return null; }
 }
 async function saveAbout(about) {
   const row = { id: 1, name: about.name, headline: about.headline, bio: about.bio, email: about.email, location: about.location, github: about.github, linkedin: about.linkedin, twitter: about.twitter, website: about.website, skills: JSON.stringify(about.skills || []), avatar_url: about.avatarUrl || "" };
